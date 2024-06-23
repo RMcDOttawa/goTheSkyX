@@ -1,4 +1,4 @@
-module goTheSkyX
+module github.com/RMcDOttawa/goTheSkyX
 
 go 1.22
 
