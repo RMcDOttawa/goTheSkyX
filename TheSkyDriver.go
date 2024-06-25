@@ -389,7 +389,7 @@ func (driver *TheSkyDriverInstance) sendCommand(command string) (string, error) 
 		return "", err
 	}
 	defer func(conn net.Conn) {
-		if driver.verbosity > 2 || driver.debug {
+		if driver.verbosity > 3 || driver.debug {
 			fmt.Println("Closing socket")
 		}
 		_ = conn.Close()
