@@ -310,7 +310,7 @@ func (driver *TheSkyDriverInstance) sendCommandIgnoreReply(command string) error
 	message.WriteString("/* Socket End Packet */\n")
 
 	response, err := driver.sendCommand(message.String())
-	if driver.verbosity > 2 || driver.debug {
+	if driver.verbosity > 3 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommandIgnoreReply ignoring response: ", response)
 	}
 	if err != nil {
