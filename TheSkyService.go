@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/RMcDOttawa/goMockableDelay"
 	"math"
+	"math/rand/v2"
+	"runtime/debug"
+	"time"
 )
 
 //	TheSkyService is a high-level interface to the set of logical services we use to control
@@ -25,18 +28,26 @@ type TheSkyService interface {
 	CaptureBiasFrame(binning int, downloadTime float64) error // for mocking
 	SetDebug(debug bool)
 	SetVerbosity(verbosity int)
+	CaptureAndMeasureFlatFrame(exposure float64, binning int, filterSlot int, downloadTime float64, saveImage bool) (int64, error)
+	SetSimulateFlatCapture(flag bool)
+	WaitForCameraInactive(pollingIntervalSeconds int, timeoutMinutes int) error
 }
 
 type TheSkyServiceInstance struct {
-	driver       TheSkyDriver
-	isOpen       bool
-	delayService goMockableDelay.DelayService
-	debug        bool
-	verbosity    int
+	driver              TheSkyDriver
+	isOpen              bool
+	delayService        goMockableDelay.DelayService
+	debug               bool
+	verbosity           int
+	simulateFlatCapture bool
 }
 
 const minimumTimeoutForDark = 10.0 * 60.0
 const minimumTimeoutForBias = 3.0 * 60.0
+
+const simulationNoiseFraction = 0.02
+
+//const simulationNoiseFraction = 0.0
 
 func (service *TheSkyServiceInstance) SetDriver(driver TheSkyDriver) {
 	service.driver = driver
@@ -50,16 +61,21 @@ func (service *TheSkyServiceInstance) SetVerbosity(verbosity int) {
 	service.verbosity = verbosity
 }
 
+func (service *TheSkyServiceInstance) SetSimulateFlatCapture(flag bool) {
+	service.simulateFlatCapture = flag
+}
+
 // NewTheSkyService is the constructor for the instance of this service
 func NewTheSkyService(delayService goMockableDelay.DelayService,
 	debug bool,
 	verbosity int) TheSkyService {
 	service := &TheSkyServiceInstance{
-		isOpen:       false,
-		driver:       NewTheSkyDriver(debug, verbosity),
-		delayService: delayService,
-		debug:        debug,
-		verbosity:    verbosity,
+		isOpen:              false,
+		driver:              NewTheSkyDriver(debug, verbosity),
+		delayService:        delayService,
+		debug:               debug,
+		verbosity:           verbosity,
+		simulateFlatCapture: true,
 	}
 	return service
 }
@@ -96,6 +112,42 @@ func (service *TheSkyServiceInstance) ConnectCamera() error {
 	if err != nil {
 		fmt.Println("TheSkyServiceInstance/ConnectCamera error from driver:", err)
 		return err
+	}
+	return nil
+}
+
+func (service *TheSkyServiceInstance) WaitForCameraInactive(pollingIntervalSeconds int, timeoutMinutes int) error {
+	if service.verbosity >= 5 {
+		fmt.Printf("TheSkyServiceInstance/WaitForCameraInactive(%d)\n", pollingIntervalSeconds)
+	}
+	if !service.isOpen {
+		return errors.New("TheSkyServiceInstance/WaitForCameraInactive: Connection not open")
+	}
+	err := service.driver.ConnectCamera()
+	if err != nil {
+		fmt.Println("TheSkyServiceInstance/ConnectCamera error from driver:", err)
+		return err
+	}
+	timeoutTime := time.Now().Add(time.Duration(timeoutMinutes) * time.Minute)
+	for {
+		done, err := service.driver.IsCaptureDone()
+		if err != nil {
+			fmt.Println("TheSkyServiceInstance/WaitForCameraInactive error from IsCaptureDone:", err)
+			return err
+		}
+		if done {
+			if service.verbosity >= 5 {
+				fmt.Println("  Camera done, returning")
+			}
+			break
+		}
+		if service.verbosity >= 5 {
+			fmt.Printf("  Camera not done, waiting %d seconds to try again\n", pollingIntervalSeconds)
+		}
+		_, err = service.delayService.DelayDuration(pollingIntervalSeconds)
+		if time.Now().After(timeoutTime) {
+			return errors.New("timed out waiting for camera to finish")
+		}
 	}
 	return nil
 }
@@ -165,17 +217,18 @@ func (service *TheSkyServiceInstance) MeasureDownloadTime(binning int) (float64,
 	if !service.isOpen {
 		return 0.0, errors.New("TheSkyServiceInstance/MeasureDownloadTime: Connection not open")
 	}
-	time, err := service.driver.MeasureDownloadTime(binning)
+	downloadTime, err := service.driver.MeasureDownloadTime(binning)
 	if err != nil {
 		fmt.Println("TheSkyServiceInstance/MeasureDownloadTime error from driver:", err)
-		return time, err
+		return downloadTime, err
 	}
-	return time, nil
+	return downloadTime, nil
 }
 
 const AndALittleExtra = 0.5
 const pollingInterval = 2.0 //	seconds between polls
 const timeoutFactor = 5.0   // How much longer to wait than the exposure time
+const shortTimeForBiasExposure = 0.1
 
 func (service *TheSkyServiceInstance) CaptureDarkFrame(binning int, seconds float64, downloadTime float64) error {
 	if service.verbosity >= 4 || service.debug {
@@ -188,7 +241,7 @@ func (service *TheSkyServiceInstance) CaptureDarkFrame(binning int, seconds floa
 	}
 	//	Now we'll wait until the exposure is probably over - exposure time + download time
 	delayUntilComplete := int(math.Round(seconds + downloadTime + AndALittleExtra))
-	if service.verbosity >= 3 {
+	if service.verbosity >= 4 {
 		fmt.Println("Exposure started. Waiting for ", delayUntilComplete)
 	}
 	if _, err := service.delayService.DelayDuration(delayUntilComplete); err != nil {
@@ -234,9 +287,8 @@ func (service *TheSkyServiceInstance) CaptureBiasFrame(binning int, downloadTime
 		return err
 	}
 	//	Now we'll wait until the exposure is probably over - exposure time + download time
-	const shortTimeForBiasExposure = 0.1
 	delayUntilComplete := int(math.Round(shortTimeForBiasExposure + downloadTime + AndALittleExtra))
-	if service.verbosity >= 3 {
+	if service.verbosity >= 4 {
 		fmt.Println("Exposure started. Waiting for ", delayUntilComplete)
 	}
 	if _, err := service.delayService.DelayDuration(delayUntilComplete); err != nil {
@@ -271,4 +323,119 @@ func (service *TheSkyServiceInstance) CaptureBiasFrame(binning int, downloadTime
 		}
 		secondsWaitedSoFar += pollingInterval
 	}
+}
+
+// Note that testing this function without a live camera and a real flat target is difficult, as
+// the ADU value returned will not be typical.  (From TheSkyX's camera simulator, it is a constant value).
+// So, we have an optional testing simulator that can return ADUs empirically calculated from testing.
+// This, if used, is run after the driver runs the CaptureFlat routine so we still exercise the driver and the waiting
+
+func (service *TheSkyServiceInstance) CaptureAndMeasureFlatFrame(exposure float64, binning int, filterSlot int, downloadTime float64, saveImage bool) (int64, error) {
+	if service.verbosity >= 4 || service.debug {
+		fmt.Printf("TheSkyServiceInstance/CaptureAndMeasureFlatFrame(%g, %d, %g, %t) \n", exposure, binning, downloadTime, saveImage)
+	}
+	if exposure == 0.0 {
+		fmt.Printf("TheSkyServiceInstance/CaptureAndMeasureFlatFrame ASSERT FAIL, exposure 0 (%g, %d, %g, %t) \n", exposure, binning, downloadTime, saveImage)
+		debug.PrintStack()
+		panic("Exposure=0")
+	}
+	err := service.driver.StartFlatFrameCapture(binning, exposure, filterSlot, downloadTime, saveImage)
+	if err != nil {
+		fmt.Println("TheSkyServiceInstance/StartFlatFrameCapture error from driver:", err)
+		return 0, err
+	}
+	//	Now we'll wait until the exposure is probably over - exposure time + download time
+	delayUntilComplete := int(math.Round(exposure + downloadTime + AndALittleExtra))
+	if service.verbosity >= 4 {
+		fmt.Println("Exposure started. Waiting for ", delayUntilComplete)
+	}
+	if _, err := service.delayService.DelayDuration(delayUntilComplete); err != nil {
+		fmt.Println("TheSkyServiceInstance/CaptureAndMeasureFlatFrame error from delaypkg service:", err)
+		return 0, err
+	}
+	//	Now we poll the camera repeatedly until it reports done
+	maximumWaitSeconds := math.Max((exposure+downloadTime)*timeoutFactor, minimumTimeoutForDark)
+	secondsWaitedSoFar := 0.0
+	for {
+		done, err := service.driver.IsCaptureDone()
+		if err != nil {
+			fmt.Println("TheSkyServiceInstance/CaptureAndMeasureFlatFrame error from IsCaptureDone:", err)
+			return 0, err
+		}
+		if done {
+			if service.verbosity >= 4 {
+				fmt.Println("capture is done, returning")
+			}
+			aduValue, err := service.driver.GetADUValue()
+			if err != nil {
+				fmt.Println("TheSkyServiceInstance/CaptureAndMeasureFlatFrame error from GetADUValue:", err)
+				return 0, err
+			}
+			if service.simulateFlatCapture {
+				simulatedAduValue, _ := service.simulatedFrameCapture(exposure, binning, filterSlot, downloadTime, saveImage)
+				if service.verbosity >= 4 {
+					fmt.Printf("Simulating ADU value, overrode %d with %d", aduValue, simulatedAduValue)
+				}
+				aduValue = simulatedAduValue
+			}
+			if service.verbosity >= 4 {
+				fmt.Println("   Returned ADU value:", aduValue)
+			}
+			return aduValue, nil
+		}
+		if secondsWaitedSoFar > maximumWaitSeconds {
+			return 0, errors.New("TheSkyServiceInstance/CaptureAndMeasureFlatFrame: Timeout waiting for capture to finish")
+		}
+		if service.verbosity >= 4 {
+			fmt.Println("Camera not finished. Delaying ", pollingInterval)
+		}
+		if _, err := service.delayService.DelayDuration(int(math.Round(pollingInterval))); err != nil {
+			fmt.Println("TheSkyServiceInstance/CaptureDarkFrame error from polling delaypkg service:", err)
+			return 0, err
+		}
+		secondsWaitedSoFar += pollingInterval
+	}
+}
+
+// Simulate a frame capture by doing a simple linear formula with experimental slope and intercept,
+// and add a bit of noise
+func (service *TheSkyServiceInstance) simulatedFrameCapture(exposure float64, binning int, filterSlot int, _ float64, _ bool) (int64, error) {
+	var slope float64
+	var intercept float64
+	if (binning == 1) && (filterSlot == 4) {
+		// Luminance, binned 1x1
+		slope = 721.8
+		intercept = 19817.0
+	} else if (binning == 2) && (filterSlot == 1) {
+		// Red filter, binned 2x2
+		slope = 7336.7
+		intercept = -100.48
+	} else if (binning == 2) && (filterSlot == 2) {
+		// Green filter, binned 2x2
+		slope = 11678.0
+		intercept = -293.09
+	} else if (binning == 2) && (filterSlot == 3) {
+		// Blue filter, binned 2x2
+		slope = 6820.4
+		intercept = 1858.3
+	} else if (binning == 1) && (filterSlot == 5) {
+		// H-alpha filter, binned 1x1
+		slope = 67.247
+		intercept = 2632.7
+	} else {
+		slope = 721.8
+		intercept = 19817.0
+	}
+	calculatedResult := slope*exposure + intercept
+
+	// Now we'll put a small percentage noise into the value, so it has some variability for realism
+	randFactorZeroCentered := simulationNoiseFraction * (rand.Float64() - 0.5)
+	noisyResult := calculatedResult + randFactorZeroCentered*calculatedResult
+	roundedNoisyResult := math.Round(noisyResult)
+	intResult := int64(math.Min(roundedNoisyResult, 65535.0))
+
+	if service.verbosity >= 4 {
+		fmt.Printf("Simulated flat adu for exp %g, binning %d, filter %d = %d\n", exposure, binning, filterSlot, intResult)
+	}
+	return intResult, nil
 }

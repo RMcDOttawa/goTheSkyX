@@ -98,3 +98,109 @@ func TestDarkCapture(t *testing.T) {
 	})
 
 }
+
+func TestFlatCapture(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Test of an ideal acquisition - we start the camera acquisition, wait a calculated amount
+	// of time, and then see that the camera reports done, and returns correct ADU setting
+	t.Run("capture flat frame ready on time", func(t *testing.T) {
+		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		service.SetSimulateFlatCapture(false)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		const binning = 1
+		const seconds = 14.0
+		const downloadTime = 5.0
+		const saveImageFlag = false
+		const filterSlot = 1
+		const arbitraryAduValue = int64(30000)
+		mockDriver.EXPECT().StartFlatFrameCapture(binning, seconds, filterSlot, downloadTime, saveImageFlag).Return(nil)
+		//	Initial delaypkg while waiting for exposure
+		initialDelay := int(math.Round(seconds + downloadTime + AndALittleExtra)) // from service
+		mockDelayService.EXPECT().DelayDuration(initialDelay).Return(initialDelay, nil)
+		//	Report capture done on first check
+		//	Mock camera status to report capture not done on first or second check; done on third
+		mockDriver.EXPECT().IsCaptureDone().Return(true, nil)
+		mockDriver.EXPECT().GetADUValue().Return(arbitraryAduValue, nil)
+
+		aduValue, err := service.CaptureAndMeasureFlatFrame(seconds, binning, filterSlot, downloadTime, saveImageFlag)
+		require.Nil(t, err, "CaptureDarkFrame failed")
+		require.Equal(t, arbitraryAduValue, aduValue, "Expected to get 30000")
+	})
+
+	//Test of an acquisition requiring extra wait.  We start the camera acquisition, wait a calculated amount,
+	//then find it isn't finished. So we loop and poll two more times, then it is done.
+	t.Run("capture flat frame requiring two extra waits", func(t *testing.T) {
+		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		service.SetSimulateFlatCapture(false)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		const binning = 1
+		const seconds = 14.0
+		const downloadTime = 5.0
+		const saveImageFlag = false
+		const arbitraryAduValue = int64(30000)
+		const filterSlot = 1
+		//	The mock driver will be asked to initiate capture, and this will report success
+		mockDriver.EXPECT().StartFlatFrameCapture(binning, seconds, filterSlot, downloadTime, saveImageFlag).Return(nil)
+		//	Mock the initial delay pkg while waiting for exposure
+		initialDelay := int(math.Round(seconds + downloadTime + AndALittleExtra)) // from service
+		mockDelayService.EXPECT().DelayDuration(initialDelay).Return(initialDelay, nil)
+		//	Mock extra waits between polls
+		mockDelayService.EXPECT().DelayDuration(2).AnyTimes().Return(1, nil)
+		//	Mock camera status to report capture not done on first or second check; done on third
+		mockDriver.EXPECT().IsCaptureDone().Return(false, nil)
+		mockDriver.EXPECT().IsCaptureDone().Return(false, nil)
+		mockDriver.EXPECT().IsCaptureDone().Return(true, nil)
+		mockDriver.EXPECT().GetADUValue().Return(arbitraryAduValue, nil)
+
+		aduValue, err := service.CaptureAndMeasureFlatFrame(seconds, binning, filterSlot, downloadTime, saveImageFlag)
+		require.Nil(t, err, "CaptureDarkFrame failed")
+		require.Equal(t, arbitraryAduValue, aduValue, "Expected to get 30000")
+	})
+	//
+	// Test of an acquisition timing out.  we start the camera acquisition, wait a calculated amount,
+	// then continue to wait and poll, only to eventually time out with no completion.
+	t.Run("capture flat frame timing out without finishing", func(t *testing.T) {
+		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		service.SetSimulateFlatCapture(false)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		const binning = 1
+		const seconds = 14.0
+		const downloadTime = 5.0
+		const saveImageFlag = false
+		const arbitraryAduValue = int64(30000)
+		const filterSlot = 1
+		//	The mock driver will be asked to initiate capture, and this will report success
+		mockDriver.EXPECT().StartFlatFrameCapture(binning, seconds, filterSlot, downloadTime, saveImageFlag).Return(nil)
+		//	Mock the initial delay pkg while waiting for exposure
+		initialDelay := int(math.Round(seconds + downloadTime + AndALittleExtra)) // from service
+		mockDelayService.EXPECT().DelayDuration(initialDelay).Return(initialDelay, nil)
+		//	Mock extra waits between polls
+		mockDelayService.EXPECT().DelayDuration(2).Return(1, nil).Times(2)
+		mockDelayService.EXPECT().DelayDuration(2).AnyTimes().Return(1, nil)
+		//	Mock camera status to report capture not done on first or second check; done on third
+		mockDriver.EXPECT().IsCaptureDone().AnyTimes().Return(false, nil)
+		mockDriver.EXPECT().GetADUValue().AnyTimes().Return(arbitraryAduValue, nil)
+
+		_, err := service.CaptureAndMeasureFlatFrame(seconds, binning, filterSlot, downloadTime, saveImageFlag)
+		require.NotNil(t, err, "capture flat should have failed")
+		require.ErrorContains(t, err, "Timeout waiting for capture to finish")
+	})
+
+}

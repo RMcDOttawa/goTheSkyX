@@ -3,6 +3,7 @@ package goTheSkyX
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -22,10 +23,12 @@ type TheSkyDriver interface {
 	StopCooling() error
 	MeasureDownloadTime(binning int) (float64, error)
 	StartDarkFrameCapture(binning int, seconds float64, downloadTime float64) error
+	StartFlatFrameCapture(binning int, seconds float64, filterSlot int, downloadTime float64, saveImage bool) error
 	IsCaptureDone() (bool, error)
 	StartBiasFrameCapture(binning int, downloadTime float64) error
 	SetDebug(debug bool)
 	SetVerbosity(verbosity int)
+	GetADUValue() (int64, error)
 }
 
 type TheSkyDriverInstance struct {
@@ -36,6 +39,8 @@ type TheSkyDriverInstance struct {
 	debug           bool
 	verbosity       int
 }
+
+const FilterSlotNoFilter = -1
 
 const maxTheSkyBuffer = 4096
 
@@ -72,7 +77,7 @@ func (driver *TheSkyDriverInstance) Connect(server string, port int) error {
 	driver.server = server
 	driver.port = port
 	driver.isOpen = true
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 5 || driver.debug {
 		fmt.Printf("TheSkyDriverInstance/Connect(%s,%d) successful\n", server, port)
 	}
 	return nil
@@ -88,7 +93,7 @@ func (driver *TheSkyDriverInstance) Close() error {
 		return nil
 	}
 	driver.isOpen = false
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 5 || driver.debug {
 		fmt.Printf("TheSkyDriverInstance/Close() successful\n")
 	}
 	return nil
@@ -139,7 +144,7 @@ func (driver *TheSkyDriverInstance) StopCooling() error {
 	var commands strings.Builder
 	commands.WriteString("ccdsoftCamera.RegulateTemperature=false;\n")
 	if !driver.cameraConnected {
-		return errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return errors.New("TheSkyDriverInstance/StopCooling: Camera not connected")
 	}
 
 	if err := driver.sendCommandIgnoreReply(commands.String()); err != nil {
@@ -155,7 +160,7 @@ func (driver *TheSkyDriverInstance) GetCameraTemperature() (float64, error) {
 		fmt.Println("GetCameraTemperature()")
 	}
 	if !driver.cameraConnected {
-		return 0.0, errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return 0.0, errors.New("TheSkyDriverInstance/GetCameraTemperature: Camera not connected")
 	}
 	var commands strings.Builder
 	commands.WriteString("var temp=ccdsoftCamera.Temperature;\n")
@@ -168,6 +173,27 @@ func (driver *TheSkyDriverInstance) GetCameraTemperature() (float64, error) {
 		return -1.0, err
 	}
 	return numberResult, nil
+}
+
+func (driver *TheSkyDriverInstance) GetADUValue() (int64, error) {
+	if driver.verbosity >= 4 || driver.debug {
+		fmt.Println("GetADUValue()")
+	}
+	if !driver.cameraConnected {
+		return 0.0, errors.New("TheSkyDriverInstance/GetADUValue: Camera not connected")
+	}
+	var commands strings.Builder
+	commands.WriteString("ccdsoftCameraImage.AttachToActive();\n")
+	commands.WriteString("var averageAdu = ccdsoftCameraImage.averagePixelValue();\n")
+	commands.WriteString("var Out;\n")
+	commands.WriteString("Out=averageAdu + \"\\n\";\n")
+
+	numberResult, err := driver.sendCommandFloatReply(commands.String())
+	if err != nil {
+		fmt.Println("GetCameraTemperature error from driver:", err)
+		return -1.0, err
+	}
+	return int64(math.Round(numberResult)), nil
 }
 
 // MeasureDownloadTime measures the time needed to download an image from the camera to the TheSkyX application
@@ -217,7 +243,7 @@ func (driver *TheSkyDriverInstance) MeasureDownloadTime(binning int) (float64, e
 		fmt.Println("TheSkyDriverInstance/MeasureDownloadTime ", binning)
 	}
 	if !driver.cameraConnected {
-		return 0.0, errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return 0.0, errors.New("TheSkyDriverInstance/MeasureDownloadTime: Camera not connected")
 	}
 	var message strings.Builder
 	message.WriteString("ccdsoftCamera.Autoguider=false;\n")
@@ -271,7 +297,7 @@ func (driver *TheSkyDriverInstance) StartDarkFrameCapture(binning int, seconds f
 		fmt.Println("TheSkyDriverInstance/StartDarkFrameCapture ", binning, seconds, downloadTime)
 	}
 	if !driver.cameraConnected {
-		return errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return errors.New("TheSkyDriverInstance/StartDarkFrameCapture: Camera not connected")
 	}
 	var message strings.Builder
 	message.WriteString("ccdsoftCamera.Autoguider=false;\n")  // Use main camera not autoguider
@@ -300,7 +326,7 @@ func (driver *TheSkyDriverInstance) StartDarkFrameCapture(binning int, seconds f
 // This is used for commands where no reply is to be read and processed by the caller
 // (There is a reply from the server, but it is used only to verify successful execution)
 func (driver *TheSkyDriverInstance) sendCommandIgnoreReply(command string) error {
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 6 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommandIgnoreReply: ", command)
 	}
 	var message strings.Builder
@@ -310,7 +336,7 @@ func (driver *TheSkyDriverInstance) sendCommandIgnoreReply(command string) error
 	message.WriteString("/* Socket End Packet */\n")
 
 	response, err := driver.sendCommand(message.String())
-	if driver.verbosity > 3 || driver.debug {
+	if driver.verbosity >= 6 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommandIgnoreReply ignoring response: ", response)
 	}
 	if err != nil {
@@ -323,7 +349,7 @@ func (driver *TheSkyDriverInstance) sendCommandIgnoreReply(command string) error
 // sendCommandFloatReply is an internal method that sends the given command string to the server.
 // This is used for commands where a floating point number reply is to be read and processed by the caller
 func (driver *TheSkyDriverInstance) sendCommandFloatReply(command string) (float64, error) {
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 6 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommandFloatReply: ", command)
 	}
 
@@ -351,7 +377,7 @@ func (driver *TheSkyDriverInstance) sendCommandFloatReply(command string) (float
 // sendCommandStringReply is an internal method that sends the given command string to the server.
 // This is used for commands where an arbitrary string reply is to be read and processed by the caller
 func (driver *TheSkyDriverInstance) sendCommandStringReply(command string) (string, error) {
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 6 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommandStringReply: ", command)
 	}
 
@@ -380,7 +406,7 @@ func (driver *TheSkyDriverInstance) sendCommand(command string) (string, error) 
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 6 || driver.debug {
 		fmt.Printf("TheSkyDriverInstance/sendCommand() opening socket(%s,%d)\n", driver.server, driver.port)
 	}
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", driver.server, driver.port))
@@ -389,7 +415,7 @@ func (driver *TheSkyDriverInstance) sendCommand(command string) (string, error) 
 		return "", err
 	}
 	defer func(conn net.Conn) {
-		if driver.verbosity > 3 || driver.debug {
+		if driver.verbosity > 4 || driver.debug {
 			fmt.Println("Closing socket")
 		}
 		_ = conn.Close()
@@ -411,7 +437,7 @@ func (driver *TheSkyDriverInstance) sendCommand(command string) (string, error) 
 		fmt.Println("sendCommand error from driver:", err)
 		return "", err
 	}
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 5 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/sendCommand() received response:", string(responseBuffer[:numRead]))
 	}
 
@@ -431,11 +457,11 @@ func (driver *TheSkyDriverInstance) sendCommand(command string) (string, error) 
 
 // IsCaptureDone polls the server to see if the camera is done with its current activity
 func (driver *TheSkyDriverInstance) IsCaptureDone() (bool, error) {
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 5 || driver.debug {
 		fmt.Println("TheSkyDriverInstance/IsCaptureDone()")
 	}
 	if !driver.cameraConnected {
-		return false, errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return false, errors.New("TheSkyDriverInstance/IsCaptureDone: Camera not connected")
 	}
 	var message strings.Builder
 	message.WriteString("var complete = ccdsoftCamera.IsExposureComplete;\n")
@@ -447,7 +473,7 @@ func (driver *TheSkyDriverInstance) IsCaptureDone() (bool, error) {
 		fmt.Println("IsCaptureDone error from driver IsExposureComplete:", err)
 		return false, err
 	}
-	if driver.verbosity >= 4 || driver.debug {
+	if driver.verbosity >= 5 || driver.debug {
 		fmt.Println("IsCaptureDone response:", responseString)
 	}
 	return responseString == "1", nil
@@ -458,7 +484,7 @@ func (driver *TheSkyDriverInstance) StartBiasFrameCapture(binning int, downloadT
 		fmt.Println("TheSkyDriverInstance/StartBiasFrameCapture ", binning, downloadTime)
 	}
 	if !driver.cameraConnected {
-		return errors.New("TheSkyDriverInstance/StartCooling: Camera not connected")
+		return errors.New("TheSkyDriverInstance/StartBiasFrameCapture: Camera not connected")
 	}
 	var message strings.Builder
 	message.WriteString("ccdsoftCamera.Autoguider=false;\n")  // Use main camera not autoguider
@@ -480,4 +506,45 @@ func (driver *TheSkyDriverInstance) StartBiasFrameCapture(binning int, downloadT
 	}
 	//fmt.Println("Camera response:", response)
 	return nil
+}
+
+func (driver *TheSkyDriverInstance) StartFlatFrameCapture(binning int, seconds float64, filterSlot int, downloadTime float64, saveImage bool) error {
+	if driver.verbosity >= 4 || driver.debug {
+		fmt.Println("TheSkyDriverInstance/StartFlatFrameCapture ", binning, seconds, downloadTime)
+	}
+	if !driver.cameraConnected {
+		return errors.New("TheSkyDriverInstance/StartFlatFrameCapture: Camera not connected")
+	}
+	var message strings.Builder
+	if filterSlot != FilterSlotNoFilter {
+		message.WriteString("ccdsoftCamera.filterWheelConnect();\n")
+		// Note: filter slot is zero-based so we subtract one
+		message.WriteString(fmt.Sprintf("ccdsoftCamera.FilterIndexZeroBased=%d;\n", filterSlot-1))
+	}
+	message.WriteString("ccdsoftCamera.Autoguider=false;\n")                                          // Use main camera not autoguider
+	message.WriteString("ccdsoftCamera.Asynchronous=true;\n")                                         // Async (don't wait)
+	message.WriteString("ccdsoftCamera.Frame=4;\n")                                                   // Flat frame
+	message.WriteString("ccdsoftCamera.ImageReduction=0;\n")                                          // No image reduction
+	message.WriteString("ccdsoftCamera.ToNewWindow=false;\n")                                         // Don't open a new window
+	message.WriteString(fmt.Sprintf("ccdsoftCamera.AutoSaveOn=%s;\n", makeJavascriptBool(saveImage))) // Save the image?
+	message.WriteString(fmt.Sprintf("ccdsoftCamera.BinX=%d;\n", binning))
+	message.WriteString(fmt.Sprintf("ccdsoftCamera.BinY=%d;\n", binning))
+	message.WriteString(fmt.Sprintf("ccdsoftCamera.ExposureTime=%.2f;\n", seconds))
+	message.WriteString("var cameraResult = ccdsoftCamera.TakeImage();\n")
+	message.WriteString("var Out;\n")
+	message.WriteString("Out=cameraResult+\"\\n\";\n")
+
+	err := driver.sendCommandIgnoreReply(message.String())
+	if err != nil {
+		fmt.Println("StartFlatFrameCapture error from driver on starting capture:", err)
+		return err
+	}
+	return nil
+}
+
+func makeJavascriptBool(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }
