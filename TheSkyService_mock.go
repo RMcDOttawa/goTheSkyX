@@ -223,3 +223,17 @@ func (mr *MockTheSkyServiceMockRecorder) StopCooling() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopCooling", reflect.TypeOf((*MockTheSkyService)(nil).StopCooling))
 }
+
+// WaitForCameraInactive mocks base method.
+func (m *MockTheSkyService) WaitForCameraInactive(arg0, arg1 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitForCameraInactive", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WaitForCameraInactive indicates an expected call of WaitForCameraInactive.
+func (mr *MockTheSkyServiceMockRecorder) WaitForCameraInactive(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForCameraInactive", reflect.TypeOf((*MockTheSkyService)(nil).WaitForCameraInactive), arg0, arg1)
+}
