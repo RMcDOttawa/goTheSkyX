@@ -3,3 +3,6 @@
 mockgen -destination=TheSkyService_mock.go -package=goTheSkyX . TheSkyService
 
 mockgen -destination=TheSkyDriver_mock.go -package=goTheSkyX . TheSkyDriver
+
+
+mockgen -destination=TheSkyService_mock.go -package=goTheSkyX . TheSkyService; mockgen -destination=TheSkyDriver_mock.go -package=goTheSkyX . TheSkyDriver

@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -15,22 +16,28 @@ import (
 //	JavaScript command packets and using sockets to communicate.
 
 type TheSkyService interface {
-	//	Open and close persistent socket connection to the server
+	//	BAsic Controls
 	Connect(server string, port int) error
-	ConnectCamera() error
 	Close() error
 	SetDriver(driver TheSkyDriver)
+	SetDebug(debug bool)
+	SetVerbosity(verbosity int)
+	//	Camera
+	ConnectCamera() error
 	StartCooling(targetTemp float64) error
 	GetCameraTemperature() (float64, error)
 	StopCooling() error
+	WaitForCameraInactive(pollingIntervalSeconds int, timeoutMinutes int) error
+	//	Filter Wheel
+	HasFilterWheel() (bool, error)
+	NumberOfFilters() (int, error)  // Number of up to first blank name
+	FilterNames() ([]string, error) // Names up to first blank name
+	//	Frame Capture
 	MeasureDownloadTime(binning int) (float64, error)
 	CaptureDarkFrame(binning int, seconds float64, downloadTime float64) error
 	CaptureBiasFrame(binning int, downloadTime float64) error // for mocking
-	SetDebug(debug bool)
-	SetVerbosity(verbosity int)
 	CaptureAndMeasureFlatFrame(exposure float64, binning int, filterSlot int, downloadTime float64, saveImage bool) (int64, error)
 	SetSimulateFlatCapture(flag bool)
-	WaitForCameraInactive(pollingIntervalSeconds int, timeoutMinutes int) error
 }
 
 type TheSkyServiceInstance struct {
@@ -439,3 +446,94 @@ func (service *TheSkyServiceInstance) simulatedFrameCapture(exposure float64, bi
 	}
 	return intResult, nil
 }
+
+// HasFilterWheel determines whether the camera has a filter wheel.
+//
+//	 There is no API call to determine this, so we will infer it this way:
+//	Determine if the filter wheel is connected
+//		If yes, then there is a filter wheel (duh)
+//		If no, then try to connect.
+//			If that fails, there is no filter wheel.
+//			If the connect succeeds, then there is a filter wheel; and disconnect again
+func (service *TheSkyServiceInstance) HasFilterWheel() (bool, error) {
+	if service.verbosity >= 4 || service.debug {
+		fmt.Println("TheSkyServiceInstance/HasFilterWheel ")
+	}
+
+	// Ask if filter wheel is connected
+	isConnected, err := service.driver.FilterWheelIsConnected()
+	//	Success means there is a wheel
+	if err != nil {
+		fmt.Println("HasFilterWheel error from driver checking if connected:", err)
+		return false, err
+	}
+	if isConnected {
+		return true, nil
+	}
+
+	// Not connected.  Try to connect
+	err = service.driver.FilterWheelConnect()
+
+	//	Failure?  No filter wheel
+	if err != nil {
+		//fmt.Println("Filterwheel error connect code: ", err)
+		return false, nil
+	}
+	//	Success?  Filter wheel.  And disconnect.
+
+	_ = service.driver.FilterWheelDisconnect()
+	return true, nil
+
+}
+
+// NumberOfFilters returns the number of filters defined for the filter wheel.
+//
+//	Although the server provides a function for this, we are not using it because the filter wheel simulator
+//	returns an absurd number of filters with names that get filled in automatically.
+//	Instead, we are going to retrieve the actual filter names, and count up to, not including, the first blank one
+func (service *TheSkyServiceInstance) NumberOfFilters() (int, error) {
+	if service.verbosity >= 4 || service.debug {
+		fmt.Println("TheSkyServiceInstance/NumberOfFilters ")
+	}
+
+	// Ask driver for filter names
+	filterNames, err := service.driver.FilterNames()
+	if err != nil {
+		fmt.Println("NumberOfFilters error from driver retrieving filter names:", err)
+		return 0, err
+	}
+	count := 0
+	for i := 0; i < len(filterNames); i++ {
+		name := filterNames[i]
+		if strings.TrimSpace(name) == "" {
+			break
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (service *TheSkyServiceInstance) FilterNames() ([]string, error) {
+	if service.verbosity >= 4 || service.debug {
+		fmt.Println("TheSkyServiceInstance/FilterNames ")
+	}
+
+	// Ask driver for filter names
+	filterNames, err := service.driver.FilterNames()
+	if err != nil {
+		fmt.Println("FilterNames error from driver retrieving filter names:", err)
+		return []string{}, err
+	}
+	count := 0
+	for i := 0; i < len(filterNames); i++ {
+		name := filterNames[i]
+		if strings.TrimSpace(name) == "" {
+			break
+		}
+		count++
+	}
+	return filterNames[:count], nil
+
+}
+
+//func (service *TheSkyServiceInstance) xxxxxx(args and types) (return, error) {

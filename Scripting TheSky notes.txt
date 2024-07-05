@@ -1,0 +1,54 @@
+Scripting documentation: https://www.bisque.com/wp-content/scriptthesky/
+Error codes from TheSky API commands: https://www.bisque.com/wp-content/x2standard/sberrorx_8h_source.html
+Refers to tcpscriptclient example application
+
+Send packets atomically - not in bits.  4096-byte limit.
+
+Send javascript commands
+
+Send to a TCP socket
+
+Must start with 
+/* Java Script */
+
+Use local javascript window to test packets before sending them
+
+Getting the time (to compute download times)
+void sky6Utils::ComputeUniversalTime 
+"result is placed in dOut0() property"
+Comes back as a floating point number of hours
+Shows displayed time - ensure thesky is on computer clock not a fixed time
+
+How to set clock to real time?
+	sky6StarChart object, property sk6DocProp_UseComputerClock 
+		0 = not computer, nonzero = computer
+
+How to prevent saving captured file?
+
+How to know if camera can do bias frames or must I do a very short dark frame?
+
+Learn if there is a filter wheel?
+	code = ccdsoftCamera::filterWheelConnect()
+	codes
+		0	success
+		ERR_CANNOT_COLORGRAB (1166) no filter wheel
+	
+
+Learn how many filters?
+	INumberFilters property
+
+Learn what filters are called?
+	szFilterName(index)
+	FilterIndexZeroBased. Current filter
+
+Connect filter wheel
+	int ccdsoftCamera::filterWheelConnect 	() 	
+		Returns 0 if good
+		No wheel: ERR_CANNOT_COLORGRAB                              1166
+	
+Set filter
+	ccdsoftCamera.FilterIndexZeroBased= slot number
+
+Get average ADU of image just captured
+
+Set autosave directory path

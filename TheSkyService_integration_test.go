@@ -4,6 +4,7 @@ import (
 	"github.com/RMcDOttawa/goMockableDelay"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -18,13 +19,17 @@ import (
 //	The following constant turns the tests off to prevent them from running during continuous integration
 //	or when test ./... is used, except when we want to run them.
 
-const runIntegrationTests = false
+const runIntegrationTests = true
 
 // Since these tests are interacting with the real server, we need to use a mutext to ensure they are serialized
 var testFuncMutex sync.Mutex
 
 const cameraWaitPollingSeconds = 1
 const cameraWaitTimeoutMinutes = 2
+
+const isThereInFactAFilterWheel = true
+const expectedNumberOfFilters = 5 // Number of slots in the bisque filter wheel simulator
+var expectedFilterNames = [...]string{"red", "green", "blue", "luminance", "ha"}
 
 func TestServerIntegration(t *testing.T) {
 	if runIntegrationTests {
@@ -177,6 +182,81 @@ func TestServerIntegration(t *testing.T) {
 
 			err = server.Close()
 			require.Nil(t, err, "Unable to close server")
+
+		})
+
+		t.Run("Integration test filter wheel functions", func(t *testing.T) {
+			t.Run("Detect filter wheel", func(t *testing.T) {
+				testFuncMutex.Lock()
+				defer testFuncMutex.Unlock()
+
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+
+				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+				server := NewTheSkyService(mockDelayService, false, 1)
+				err := server.Connect("localhost", 3040)
+				require.Nil(t, err, "Unable to connect to service")
+				err = server.ConnectCamera()
+				require.Nil(t, err, "Unable to connect to camera")
+				err = server.WaitForCameraInactive(cameraWaitPollingSeconds, cameraWaitTimeoutMinutes)
+				require.Nil(t, err, "Camera did not become inactive from previous test")
+
+				hasFilter, err := server.HasFilterWheel()
+				require.Nil(t, err, "Unable to check filter wheel")
+				require.Equal(t, isThereInFactAFilterWheel, hasFilter, "Incorrect filter wheel detection")
+			})
+
+			//	Number of filters
+			t.Run("Report number of slots on filter wheel", func(t *testing.T) {
+				testFuncMutex.Lock()
+				defer testFuncMutex.Unlock()
+
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+
+				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+				server := NewTheSkyService(mockDelayService, false, 1)
+				err := server.Connect("localhost", 3040)
+				require.Nil(t, err, "Unable to connect to service")
+				err = server.ConnectCamera()
+				require.Nil(t, err, "Unable to connect to camera")
+				err = server.WaitForCameraInactive(cameraWaitPollingSeconds, cameraWaitTimeoutMinutes)
+				require.Nil(t, err, "Camera did not become inactive from previous test")
+
+				numberOfFilters, err := server.NumberOfFilters()
+				require.Nil(t, err, "Unable to number of filter slots from filter wheel")
+				require.Equal(t, expectedNumberOfFilters, numberOfFilters, "Incorrect filter wheel slot count")
+			})
+
+			//	Array of filter names
+			t.Run("Retrieve array of names of filter wheel slots", func(t *testing.T) {
+				testFuncMutex.Lock()
+				defer testFuncMutex.Unlock()
+
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+
+				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+				server := NewTheSkyService(mockDelayService, false, 1)
+				err := server.Connect("localhost", 3040)
+				require.Nil(t, err, "Unable to connect to service")
+				err = server.ConnectCamera()
+				require.Nil(t, err, "Unable to connect to camera")
+				err = server.WaitForCameraInactive(cameraWaitPollingSeconds, cameraWaitTimeoutMinutes)
+				require.Nil(t, err, "Camera did not become inactive from previous test")
+
+				numberOfFilters, err := server.NumberOfFilters()
+				require.Nil(t, err, "Unable to number of filter slots from filter wheel")
+
+				filterNames, err := server.FilterNames()
+				require.Nil(t, err, "Unable to retrieve filter wheel slot names")
+				require.Equal(t, numberOfFilters, len(filterNames), "Wrong number of filter names returned")
+				for i := 0; i < len(filterNames); i++ {
+					require.Equal(t, strings.ToLower(expectedFilterNames[i]),
+						strings.ToLower(filterNames[i]), "Expected filter name not returned")
+				}
+			})
 
 		})
 

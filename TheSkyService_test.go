@@ -1,6 +1,7 @@
 package goTheSkyX
 
 import (
+	"errors"
 	"github.com/RMcDOttawa/goMockableDelay"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -201,6 +202,63 @@ func TestFlatCapture(t *testing.T) {
 		_, err := service.CaptureAndMeasureFlatFrame(seconds, binning, filterSlot, downloadTime, saveImageFlag)
 		require.NotNil(t, err, "capture flat should have failed")
 		require.ErrorContains(t, err, "Timeout waiting for capture to finish")
+	})
+
+}
+
+func TestFilterWheel(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Test ability to detect filter wheel when present and already connected
+	t.Run("detect filter wheel", func(t *testing.T) {
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		mockDriver.EXPECT().FilterWheelIsConnected().Return(true, nil)
+
+		hasFilterWheel, err := service.HasFilterWheel()
+		require.Nil(t, err, "Unable to query filter wheel")
+		require.True(t, hasFilterWheel, "Expected filter wheel")
+
+	})
+
+	// Test ability to detect filter wheel when present but not yet  connected
+	t.Run("detect filter wheel when not connected", func(t *testing.T) {
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		mockDriver.EXPECT().FilterWheelIsConnected().Return(false, nil)
+		mockDriver.EXPECT().FilterWheelConnect().Return(nil)
+		mockDriver.EXPECT().FilterWheelDisconnect().Return(nil)
+
+		hasFilterWheel, err := service.HasFilterWheel()
+		require.Nil(t, err, "Unable to query filter wheel")
+		require.True(t, hasFilterWheel, "Expected filter wheel")
+
+	})
+
+	// Test ability to detect absence of a filter wheel when none is present
+	t.Run("detect filter wheel", func(t *testing.T) {
+		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
+		service := NewTheSkyService(mockDelayService, false, 0)
+		// Plug mock driver into service
+		mockDriver := NewMockTheSkyDriver(ctrl)
+		service.SetDriver(mockDriver)
+
+		mockDriver.EXPECT().FilterWheelIsConnected().Return(false, nil)
+		mockDriver.EXPECT().FilterWheelConnect().Return(errors.New("can't connect"))
+
+		hasFilterWheel, err := service.HasFilterWheel()
+		require.Nil(t, err, "Unable to query filter wheel")
+		require.False(t, hasFilterWheel, "Expected to determine there is no filter wheel")
+
 	})
 
 }

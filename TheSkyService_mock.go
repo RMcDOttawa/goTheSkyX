@@ -118,6 +118,21 @@ func (mr *MockTheSkyServiceMockRecorder) ConnectCamera() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectCamera", reflect.TypeOf((*MockTheSkyService)(nil).ConnectCamera))
 }
 
+// FilterNames mocks base method.
+func (m *MockTheSkyService) FilterNames() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterNames")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterNames indicates an expected call of FilterNames.
+func (mr *MockTheSkyServiceMockRecorder) FilterNames() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterNames", reflect.TypeOf((*MockTheSkyService)(nil).FilterNames))
+}
+
 // GetCameraTemperature mocks base method.
 func (m *MockTheSkyService) GetCameraTemperature() (float64, error) {
 	m.ctrl.T.Helper()
@@ -133,6 +148,21 @@ func (mr *MockTheSkyServiceMockRecorder) GetCameraTemperature() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCameraTemperature", reflect.TypeOf((*MockTheSkyService)(nil).GetCameraTemperature))
 }
 
+// HasFilterWheel mocks base method.
+func (m *MockTheSkyService) HasFilterWheel() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasFilterWheel")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasFilterWheel indicates an expected call of HasFilterWheel.
+func (mr *MockTheSkyServiceMockRecorder) HasFilterWheel() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFilterWheel", reflect.TypeOf((*MockTheSkyService)(nil).HasFilterWheel))
+}
+
 // MeasureDownloadTime mocks base method.
 func (m *MockTheSkyService) MeasureDownloadTime(arg0 int) (float64, error) {
 	m.ctrl.T.Helper()
@@ -146,6 +176,21 @@ func (m *MockTheSkyService) MeasureDownloadTime(arg0 int) (float64, error) {
 func (mr *MockTheSkyServiceMockRecorder) MeasureDownloadTime(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MeasureDownloadTime", reflect.TypeOf((*MockTheSkyService)(nil).MeasureDownloadTime), arg0)
+}
+
+// NumberOfFilters mocks base method.
+func (m *MockTheSkyService) NumberOfFilters() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NumberOfFilters")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NumberOfFilters indicates an expected call of NumberOfFilters.
+func (mr *MockTheSkyServiceMockRecorder) NumberOfFilters() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NumberOfFilters", reflect.TypeOf((*MockTheSkyService)(nil).NumberOfFilters))
 }
 
 // SetDebug mocks base method.

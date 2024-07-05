@@ -75,6 +75,64 @@ func (mr *MockTheSkyDriverMockRecorder) ConnectCamera() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectCamera", reflect.TypeOf((*MockTheSkyDriver)(nil).ConnectCamera))
 }
 
+// FilterNames mocks base method.
+func (m *MockTheSkyDriver) FilterNames() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterNames")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterNames indicates an expected call of FilterNames.
+func (mr *MockTheSkyDriverMockRecorder) FilterNames() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterNames", reflect.TypeOf((*MockTheSkyDriver)(nil).FilterNames))
+}
+
+// FilterWheelConnect mocks base method.
+func (m *MockTheSkyDriver) FilterWheelConnect() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterWheelConnect")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FilterWheelConnect indicates an expected call of FilterWheelConnect.
+func (mr *MockTheSkyDriverMockRecorder) FilterWheelConnect() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterWheelConnect", reflect.TypeOf((*MockTheSkyDriver)(nil).FilterWheelConnect))
+}
+
+// FilterWheelDisconnect mocks base method.
+func (m *MockTheSkyDriver) FilterWheelDisconnect() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterWheelDisconnect")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FilterWheelDisconnect indicates an expected call of FilterWheelDisconnect.
+func (mr *MockTheSkyDriverMockRecorder) FilterWheelDisconnect() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterWheelDisconnect", reflect.TypeOf((*MockTheSkyDriver)(nil).FilterWheelDisconnect))
+}
+
+// FilterWheelIsConnected mocks base method.
+func (m *MockTheSkyDriver) FilterWheelIsConnected() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterWheelIsConnected")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterWheelIsConnected indicates an expected call of FilterWheelIsConnected.
+func (mr *MockTheSkyDriverMockRecorder) FilterWheelIsConnected() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterWheelIsConnected", reflect.TypeOf((*MockTheSkyDriver)(nil).FilterWheelIsConnected))
+}
+
 // GetADUValue mocks base method.
 func (m *MockTheSkyDriver) GetADUValue() (int64, error) {
 	m.ctrl.T.Helper()

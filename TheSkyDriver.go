@@ -15,20 +15,28 @@ import (
 // to the server via a TCP socket.
 
 type TheSkyDriver interface {
+	// Basics
 	Connect(server string, port int) error
-	ConnectCamera() error
 	Close() error
+	SetDebug(debug bool)
+	SetVerbosity(verbosity int)
+	// Camera
+	ConnectCamera() error
 	StartCooling(temp float64) error
 	GetCameraTemperature() (float64, error)
 	StopCooling() error
+	// Frame Capture
 	MeasureDownloadTime(binning int) (float64, error)
 	StartDarkFrameCapture(binning int, seconds float64, downloadTime float64) error
 	StartFlatFrameCapture(binning int, seconds float64, filterSlot int, downloadTime float64, saveImage bool) error
 	IsCaptureDone() (bool, error)
 	StartBiasFrameCapture(binning int, downloadTime float64) error
-	SetDebug(debug bool)
-	SetVerbosity(verbosity int)
 	GetADUValue() (int64, error)
+	// Filters
+	FilterWheelIsConnected() (bool, error)
+	FilterWheelConnect() error
+	FilterWheelDisconnect() error
+	FilterNames() ([]string, error)
 }
 
 type TheSkyDriverInstance struct {
@@ -548,3 +556,122 @@ func makeJavascriptBool(b bool) string {
 	}
 	return "false"
 }
+
+func (driver *TheSkyDriverInstance) sendCommandIntReply(s string) (int, error) {
+	response, err := driver.sendCommandStringReply(s)
+	if err != nil {
+		return 0, err
+	}
+	response = strings.TrimSpace(response)
+	result, err := strconv.Atoi(response)
+	if err != nil {
+		return 0, errors.New(fmt.Sprintf("sendCommandIntReply: error parsing numeric result: %s", err))
+	}
+	return result, nil
+}
+
+func (driver *TheSkyDriverInstance) FilterWheelIsConnected() (bool, error) {
+	//fmt.Println("FilterWheelIsConnected")
+	var message strings.Builder
+	message.WriteString("var isConnected;\n")
+	message.WriteString("isConnected = ccdsoftCamera.filterWheelIsConnected();\n")
+	message.WriteString("var out;\n")
+	message.WriteString("out = isConnected + \"\\n\";\n")
+	//fmt.Println("Command to send:\n", message.String())
+
+	responseCode, err := driver.sendCommandIntReply(message.String())
+	if err != nil {
+		//fmt.Println("HasFilterWheel error from driver:", err)
+		return false, err
+	}
+
+	//fmt.Println("HasFilterWheel response:", responseCode)
+
+	return responseCode == 1, nil
+}
+
+func (driver *TheSkyDriverInstance) FilterWheelConnect() error {
+	//fmt.Println("FilterWheelConnect ")
+	var message strings.Builder
+	message.WriteString("result = ccdsoftCamera.filterWheelConnect();\n")
+	message.WriteString("var out;\n")
+	message.WriteString("out = result + \"\\n\";\n")
+	//fmt.Println("Command to send:\n", message.String())
+
+	responseCode, err := driver.sendCommandIntReply(message.String())
+	if err != nil {
+		//fmt.Println("HasFilterWheel error from driver:", err)
+		return err
+	}
+	if responseCode != 0 {
+		return errors.New(fmt.Sprintf("FilterWheelConnect: response code %d", responseCode))
+	}
+
+	return nil
+}
+
+func (driver *TheSkyDriverInstance) FilterWheelDisconnect() error {
+	fmt.Println("FilterWheelDisconnect STUB")
+	return nil
+}
+
+//	Retrieve a list of filter names from the camera
+//	There is no single command to do this, so we send a script that
+//		Gets the number of filters
+//		Loops through indexes up to that number, retrieving filter by slot number
+//		Results are concatenated together with tab characters and returned in a single string
+//
+//	The following javascript
+//		var numFilters = ccdsoftCamera.lNumberFilters;
+//		var result = "";
+//		var i;
+//		for (i = 0; i < numFilters; i++) {
+//			filterName = ccdsoftCamera.szFilterName(i);
+//		    result = result + "\t" + filterName;
+//		}
+//		var out = result + "\n";
+
+func (driver *TheSkyDriverInstance) FilterNames() ([]string, error) {
+	fmt.Println("FilterNames STUB")
+	var message strings.Builder
+	message.WriteString("var numFilters = ccdsoftCamera.lNumberFilters;\n")
+	message.WriteString("var result = \"\";\n")
+	message.WriteString("var i;\n")
+	message.WriteString("for (i = 0; i < numFilters; i++) {\n")
+	message.WriteString("   filterName = ccdsoftCamera.szFilterName(i);\n")
+	message.WriteString("   result = result + \"\\t\" + filterName;\n")
+	message.WriteString("}\n")
+	message.WriteString("var out = result + \"\\n\";\n")
+
+	//fmt.Println("Command to send:\n", message.String())
+
+	responseBlob, err := driver.sendCommandStringReply(message.String())
+	if err != nil {
+		fmt.Println("FilterNames error from driver:", err)
+		return []string{}, err
+	}
+
+	//fmt.Println("FilterNames response:", responseBlob)
+	filterNames := strings.Split(responseBlob, "\t")
+	return filterNames, nil
+}
+
+//func (driver *TheSkyDriverInstance) xxxxx(args) error {
+//}
+
+//var message strings.Builder
+//message.WriteString("var isConnected;\n")
+//message.WriteString("isConnected = ccdsoftCamera.filterWheelIsConnected();\n")
+//message.WriteString("var out;\n")
+//message.WriteString("out = isConnected + \"\\n\";\n")
+//fmt.Println("Command to send:\n", message.String())
+//
+//responseCode, err := driver.sendCommandIntReply(message.String())
+//if err != nil {
+//	fmt.Println("HasFilterWheel error from driver:", err)
+//	return false, err
+//}
+//
+//fmt.Println("HasFilterWheel response:", responseCode)
+//
+//return false, nil
