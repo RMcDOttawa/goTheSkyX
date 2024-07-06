@@ -632,7 +632,7 @@ func (driver *TheSkyDriverInstance) FilterWheelDisconnect() error {
 //		var out = result + "\n";
 
 func (driver *TheSkyDriverInstance) FilterNames() ([]string, error) {
-	fmt.Println("FilterNames STUB")
+	//fmt.Println("FilterNames STUB")
 	var message strings.Builder
 	message.WriteString("var numFilters = ccdsoftCamera.lNumberFilters;\n")
 	message.WriteString("var result = \"\";\n")
