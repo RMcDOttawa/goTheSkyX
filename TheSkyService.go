@@ -75,14 +75,15 @@ func (service *TheSkyServiceInstance) SetSimulateFlatCapture(flag bool) {
 // NewTheSkyService is the constructor for the instance of this service
 func NewTheSkyService(delayService goMockableDelay.DelayService,
 	debug bool,
-	verbosity int) TheSkyService {
+	verbosity int,
+	simulateFlatFrameADUs bool) TheSkyService {
 	service := &TheSkyServiceInstance{
 		isOpen:              false,
 		driver:              NewTheSkyDriver(debug, verbosity),
 		delayService:        delayService,
 		debug:               debug,
 		verbosity:           verbosity,
-		simulateFlatCapture: true,
+		simulateFlatCapture: simulateFlatFrameADUs,
 	}
 	return service
 }
