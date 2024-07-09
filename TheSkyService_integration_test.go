@@ -43,7 +43,7 @@ func TestServerIntegration(t *testing.T) {
 
 			mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
 			realDelayService := goMockableDelay.NewDelayService(false, 1)
-			server := NewTheSkyService(mockDelayService, false, 1)
+			server := NewTheSkyService(mockDelayService, false, 1, true)
 
 			err := server.Connect("localhost", 3040)
 			require.Nil(t, err, "Unable to connect to service")
@@ -75,7 +75,7 @@ func TestServerIntegration(t *testing.T) {
 			defer ctrl.Finish()
 
 			realDelayService := goMockableDelay.NewDelayService(false, 1)
-			server := NewTheSkyService(realDelayService, false, 1)
+			server := NewTheSkyService(realDelayService, false, 1, true)
 
 			err := server.Connect("localhost", 3040)
 			require.Nil(t, err, "Unable to connect to service")
@@ -101,7 +101,7 @@ func TestServerIntegration(t *testing.T) {
 			defer ctrl.Finish()
 
 			realDelayService := goMockableDelay.NewDelayService(false, 1)
-			server := NewTheSkyService(realDelayService, false, 1)
+			server := NewTheSkyService(realDelayService, false, 1, true)
 
 			err := server.Connect("localhost", 3040)
 			require.Nil(t, err, "Unable to connect to service")
@@ -131,7 +131,7 @@ func TestServerIntegration(t *testing.T) {
 			defer ctrl.Finish()
 
 			realDelayService := goMockableDelay.NewDelayService(false, 1)
-			server := NewTheSkyService(realDelayService, false, 1)
+			server := NewTheSkyService(realDelayService, false, 1, true)
 
 			err := server.Connect("localhost", 3040)
 			require.Nil(t, err, "Unable to connect to service")
@@ -160,7 +160,7 @@ func TestServerIntegration(t *testing.T) {
 			defer ctrl.Finish()
 
 			realDelayService := goMockableDelay.NewDelayService(false, 1)
-			server := NewTheSkyService(realDelayService, false, 1)
+			server := NewTheSkyService(realDelayService, false, 1, true)
 
 			err := server.Connect("localhost", 3040)
 			require.Nil(t, err, "Unable to connect to service")
@@ -194,7 +194,7 @@ func TestServerIntegration(t *testing.T) {
 				defer ctrl.Finish()
 
 				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-				server := NewTheSkyService(mockDelayService, false, 1)
+				server := NewTheSkyService(mockDelayService, false, 1, true)
 				err := server.Connect("localhost", 3040)
 				require.Nil(t, err, "Unable to connect to service")
 				err = server.ConnectCamera()
@@ -216,7 +216,7 @@ func TestServerIntegration(t *testing.T) {
 				defer ctrl.Finish()
 
 				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-				server := NewTheSkyService(mockDelayService, false, 1)
+				server := NewTheSkyService(mockDelayService, false, 1, true)
 				err := server.Connect("localhost", 3040)
 				require.Nil(t, err, "Unable to connect to service")
 				err = server.ConnectCamera()
@@ -238,7 +238,7 @@ func TestServerIntegration(t *testing.T) {
 				defer ctrl.Finish()
 
 				mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-				server := NewTheSkyService(mockDelayService, false, 1)
+				server := NewTheSkyService(mockDelayService, false, 1, true)
 				err := server.Connect("localhost", 3040)
 				require.Nil(t, err, "Unable to connect to service")
 				err = server.ConnectCamera()

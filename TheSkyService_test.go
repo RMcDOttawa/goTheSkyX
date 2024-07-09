@@ -20,7 +20,7 @@ func TestDarkCapture(t *testing.T) {
 	t.Run("capture dark frame ready on time", func(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)
@@ -45,7 +45,7 @@ func TestDarkCapture(t *testing.T) {
 	t.Run("capture dark frame requiring two extra waits", func(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)
@@ -75,7 +75,7 @@ func TestDarkCapture(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)
@@ -109,7 +109,7 @@ func TestFlatCapture(t *testing.T) {
 	t.Run("capture flat frame ready on time", func(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		service.SetSimulateFlatCapture(false)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
@@ -140,7 +140,7 @@ func TestFlatCapture(t *testing.T) {
 	t.Run("capture flat frame requiring two extra waits", func(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		service.SetSimulateFlatCapture(false)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
@@ -175,7 +175,7 @@ func TestFlatCapture(t *testing.T) {
 	t.Run("capture flat frame timing out without finishing", func(t *testing.T) {
 		//mockDelayService, service, mockDriver := setUpDarkCaptureTest(ctrl)
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		service.SetSimulateFlatCapture(false)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
@@ -213,7 +213,7 @@ func TestFilterWheel(t *testing.T) {
 	// Test ability to detect filter wheel when present and already connected
 	t.Run("detect filter wheel", func(t *testing.T) {
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)
@@ -229,7 +229,7 @@ func TestFilterWheel(t *testing.T) {
 	// Test ability to detect filter wheel when present but not yet  connected
 	t.Run("detect filter wheel when not connected", func(t *testing.T) {
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)
@@ -247,7 +247,7 @@ func TestFilterWheel(t *testing.T) {
 	// Test ability to detect absence of a filter wheel when none is present
 	t.Run("detect filter wheel", func(t *testing.T) {
 		mockDelayService := goMockableDelay.NewMockDelayService(ctrl)
-		service := NewTheSkyService(mockDelayService, false, 0)
+		service := NewTheSkyService(mockDelayService, false, 0, true)
 		// Plug mock driver into service
 		mockDriver := NewMockTheSkyDriver(ctrl)
 		service.SetDriver(mockDriver)

@@ -527,10 +527,11 @@ func (service *TheSkyServiceInstance) FilterNames() ([]string, error) {
 	}
 	count := 0
 	for i := 0; i < len(filterNames); i++ {
-		name := filterNames[i]
-		if strings.TrimSpace(name) == "" {
+		nameTrimmed := strings.ToLower(strings.TrimSpace(filterNames[i]))
+		if nameTrimmed == "" {
 			break
 		}
+		filterNames[i] = nameTrimmed
 		count++
 	}
 	return filterNames[:count], nil

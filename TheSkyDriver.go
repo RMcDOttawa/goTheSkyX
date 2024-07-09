@@ -612,7 +612,7 @@ func (driver *TheSkyDriverInstance) FilterWheelConnect() error {
 
 func (driver *TheSkyDriverInstance) FilterWheelDisconnect() error {
 	fmt.Println("FilterWheelDisconnect STUB")
-	return nil
+	return errors.New("FilterWheelDisconnect not implemented yet")
 }
 
 //	Retrieve a list of filter names from the camera
