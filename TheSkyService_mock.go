@@ -229,6 +229,18 @@ func (mr *MockTheSkyServiceMockRecorder) SetSimulateFlatCapture(arg0 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSimulateFlatCapture", reflect.TypeOf((*MockTheSkyService)(nil).SetSimulateFlatCapture), arg0)
 }
 
+// SetSimulationNoiseFraction mocks base method.
+func (m *MockTheSkyService) SetSimulationNoiseFraction(arg0 float64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetSimulationNoiseFraction", arg0)
+}
+
+// SetSimulationNoiseFraction indicates an expected call of SetSimulationNoiseFraction.
+func (mr *MockTheSkyServiceMockRecorder) SetSimulationNoiseFraction(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSimulationNoiseFraction", reflect.TypeOf((*MockTheSkyService)(nil).SetSimulationNoiseFraction), arg0)
+}
+
 // SetVerbosity mocks base method.
 func (m *MockTheSkyService) SetVerbosity(arg0 int) {
 	m.ctrl.T.Helper()

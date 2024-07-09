@@ -38,6 +38,7 @@ type TheSkyService interface {
 	CaptureBiasFrame(binning int, downloadTime float64) error // for mocking
 	CaptureAndMeasureFlatFrame(exposure float64, binning int, filterSlot int, downloadTime float64, saveImage bool) (int64, error)
 	SetSimulateFlatCapture(flag bool)
+	SetSimulationNoiseFraction(fraction float64)
 }
 
 type TheSkyServiceInstance struct {
