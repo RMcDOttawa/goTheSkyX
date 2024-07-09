@@ -41,18 +41,17 @@ type TheSkyService interface {
 }
 
 type TheSkyServiceInstance struct {
-	driver              TheSkyDriver
-	isOpen              bool
-	delayService        goMockableDelay.DelayService
-	debug               bool
-	verbosity           int
-	simulateFlatCapture bool
+	driver                  TheSkyDriver
+	isOpen                  bool
+	delayService            goMockableDelay.DelayService
+	debug                   bool
+	verbosity               int
+	simulateFlatCapture     bool
+	simulationNoiseFraction float64
 }
 
 const minimumTimeoutForDark = 10.0 * 60.0
 const minimumTimeoutForBias = 3.0 * 60.0
-
-const simulationNoiseFraction = 0.02
 
 //const simulationNoiseFraction = 0.0
 
@@ -72,18 +71,23 @@ func (service *TheSkyServiceInstance) SetSimulateFlatCapture(flag bool) {
 	service.simulateFlatCapture = flag
 }
 
+func (service *TheSkyServiceInstance) SetSimulationNoiseFraction(fraction float64) {
+	service.simulationNoiseFraction = fraction
+}
+
 // NewTheSkyService is the constructor for the instance of this service
 func NewTheSkyService(delayService goMockableDelay.DelayService,
 	debug bool,
 	verbosity int,
 	simulateFlatFrameADUs bool) TheSkyService {
 	service := &TheSkyServiceInstance{
-		isOpen:              false,
-		driver:              NewTheSkyDriver(debug, verbosity),
-		delayService:        delayService,
-		debug:               debug,
-		verbosity:           verbosity,
-		simulateFlatCapture: simulateFlatFrameADUs,
+		isOpen:                  false,
+		driver:                  NewTheSkyDriver(debug, verbosity),
+		delayService:            delayService,
+		debug:                   debug,
+		verbosity:               verbosity,
+		simulateFlatCapture:     simulateFlatFrameADUs,
+		simulationNoiseFraction: 0.2,
 	}
 	return service
 }
@@ -437,7 +441,7 @@ func (service *TheSkyServiceInstance) simulatedFrameCapture(exposure float64, bi
 	calculatedResult := slope*exposure + intercept
 
 	// Now we'll put a small percentage noise into the value, so it has some variability for realism
-	randFactorZeroCentered := simulationNoiseFraction * (rand.Float64() - 0.5)
+	randFactorZeroCentered := service.simulationNoiseFraction * (rand.Float64() - 0.5)
 	noisyResult := calculatedResult + randFactorZeroCentered*calculatedResult
 	roundedNoisyResult := math.Round(noisyResult)
 	intResult := int64(math.Min(roundedNoisyResult, 65535.0))
